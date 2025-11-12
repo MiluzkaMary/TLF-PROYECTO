@@ -1,0 +1,44 @@
+# === Entorno virtual ===
+venv/
+.env/
+.venv/
+
+# === Archivos temporales y cachés de Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.log
+
+# === Configuraciones locales de VS Code ===
+.vscode/
+*.code-workspace
+
+# === Archivos de entorno o secretos ===
+*.env
+*.secret
+*.key
+*.pem
+
+# === Archivos de Streamlit ===
+.streamlit/
+# Streamlit genera archivos temporales de sesión
+.streamlit/config.toml
+.streamlit/credentials.toml
+
+# === Archivos de prueba o data ===
+test.txt
+*.docx
+*.txt
+
+# === Archivos del sistema operativo ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Archivos de paquetes / dependencias ===
+*.egg-info/
+dist/
+build/
