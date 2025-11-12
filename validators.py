@@ -111,6 +111,15 @@ PATTERNS: Dict[str, PatternDef] = {
         example_bad="# evento",
         explain="Texto precedido por #, sin espacios."
     ),
+    
+    "password_segura": PatternDef(
+    name="Contraseña segura",
+    regex=_compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\d@$!%*?&_\-#]{8,}$"),
+    example_ok="MiClave_2025!",
+    example_bad="abc123",
+    explain="Debe tener mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo."
+    ),
+
 }
 
 def validate(name: str, text: str) -> Tuple[bool, str]:
