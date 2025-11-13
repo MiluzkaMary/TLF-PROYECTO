@@ -1,7 +1,13 @@
 import re
-from dataclasses import dataclass
-from typing import Pattern, Tuple, Dict
+from dataclasses import dataclass, field
+from typing import Pattern, Tuple, Dict, Optional
 
+# Esta clase guarda toda la info necesaria de cada patrón:
+# - su nombre para mostrarlo en pantalla
+# - su regex para validación completa
+# - ejemplos (bueno/malo)
+# - su explicación
+# - y opcionalmente una regex diferente solo para búsqueda dentro de textos
 @dataclass(frozen=True)
 class PatternDef:
     name: str
@@ -9,28 +15,44 @@ class PatternDef:
     example_ok: str
     example_bad: str
     explain: str
+    regex_search: Optional[Pattern] = None  # usada solo para extract_all()
 
+# Función auxiliar para compilar regex de forma más compacta
 def _compile(pattern: str, flags=0) -> Pattern:
     return re.compile(pattern, flags)
 
+# Diccionario principal con todos los patrones que maneja el sistema
 PATTERNS: Dict[str, PatternDef] = {
+
+    # -----------------------------
+    # CORREO ELECTRÓNICO
+    # -----------------------------
     "email": PatternDef(
         name="Correo electrónico",
+        # Regex estándar y confiable para correos (ignora mayúsculas)
         regex=_compile(r"(?i)\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b"),
         example_ok="usuario.nombre@dominio.com",
         example_bad="usuario@@dominio..com",
         explain="Formato estándar local@dominio.tld."
     ),
 
+    # -----------------------------
+    # TELÉFONO COLOMBIANO
+    # -----------------------------
     "telefono_co": PatternDef(
-    name="Teléfono colombiano",
-    regex=_compile(r"\b(?:\+?57[\s\-]?)?3\d{2}[\s\-]?\d{3,4}[\s\-]?\d{3,4}\b"),
-    example_ok="+57 322 9137 132",
-    example_bad="123-456-789",
-    explain="Debe comenzar con +57 o con 3. Acepta espacios o guiones; total 10 dígitos."
+        name="Teléfono colombiano",
+        # Regex para VALIDACIÓN INDIVIDUAL (fullmatch): el string debe ser SOLO el número
+        regex=_compile(r"^(?:\+57[\s-]*)?3(?:[\s-]*\d){9}$"),
+        example_ok="+57 322 9137 132",
+        example_bad="123-456-789",
+        explain="Debe contener exactamente 10 dígitos iniciando por 3, con o sin prefijo +57, permitiendo espacios o guiones.",
+        # Regex para BÚSQUEDA en textos más largos (extract_all)
+        regex_search=_compile(r"\b(?:\+57[\s-]*)?3(?:[\s-]*\d){9}\b")
     ),
 
-
+    # -----------------------------
+    # FECHA DD/MM/YYYY
+    # -----------------------------
     "fecha_ddmmyyyy": PatternDef(
         name="Fecha dd/mm/yyyy",
         regex=_compile(r"\b(0[1-9]|[12]\d|3[01])/(0[1-9]|1[0-2])/(19|20)\d{2}\b"),
@@ -39,6 +61,9 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Día 01–31, mes 01–12, año 1900–2099."
     ),
 
+    # -----------------------------
+    # CÉDULA COLOMBIANA (10 dígitos)
+    # -----------------------------
     "cedula_co": PatternDef(
         name="Cédula Colombiana",
         regex=_compile(r"\b\d{10}\b"),
@@ -47,6 +72,9 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Debe contener exactamente 10 dígitos numéricos."
     ),
 
+    # -----------------------------
+    # CÓDIGO POSTAL (6 dígitos)
+    # -----------------------------
     "codigo_postal": PatternDef(
         name="Código postal colombiano",
         regex=_compile(r"\b\d{6}\b"),
@@ -55,14 +83,21 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Debe tener exactamente 6 dígitos."
     ),
 
+    # -----------------------------
+    # URL
+    # -----------------------------
     "url": PatternDef(
         name="URL",
+        # Acepta http/https y evita fallos típicos en rutas
         regex=_compile(r"(?i)\bhttps?://[^\s/$.?#].[^\s]*\b"),
         example_ok="https://ejemplo.com",
         example_bad="htp:/ejemplo",
         explain="URL http/https válida."
     ),
 
+    # -----------------------------
+    # PLACA COLOMBIANA (carros y motos)
+    # -----------------------------
     "placa_co": PatternDef(
         name="Placa colombiana",
         regex=_compile(r"\b[A-Z]{3}\d{3}\b|\b[A-Z]{3}\d{2}[A-Z]\b"),
@@ -71,23 +106,36 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Formato vehicular colombiano (autos o motos)."
     ),
 
+    # -----------------------------
+    # DIRECCIÓN COLOMBIANA
+    # -----------------------------
     "direccion": PatternDef(
         name="Dirección",
-        regex=_compile(r"\b(?:(Calle|Carrera|Cra|Cl|Av|Avenida|Transversal|Tv)\s+\d+[A-Z]?)(?:\s*#\s*\d+[A-Z]?(?:-\d+)?)?\b"),
+        regex=_compile(
+            r"\b(?:(Calle|Carrera|Cra|Cl|Av|Avenida|Transversal|Tv)\s+\d+[A-Z]?)(?:\s*#\s*\d+[A-Z]?(?:-\d+)?)?\b"
+        ),
         example_ok="Calle 45 # 12-34",
         example_bad="cll12",
         explain="Dirección colombiana típica."
     ),
 
+    # -----------------------------
+    # MONTO DE DINERO (COP o pesos)
+    # -----------------------------
     "monto_dinero": PatternDef(
-    name="Monto de dinero (COP o pesos)",
-    regex=_compile(r"\b(?:COP\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?(?:\s?pesos)?)|\b(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?\s?pesos)\b"),
-    example_ok="COP 5.000.000 pesos",
-    example_bad="5000",
-    explain="Debe iniciar con COP o finalizar con 'pesos'. Ej: 'COP 5.000.000' o '5.000.000 pesos'."
+        name="Monto de dinero (COP o pesos)",
+        # Acepta montos con COP al inicio o 'pesos' al final
+        regex=_compile(
+            r"\b(?:COP\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?(?:\s?pesos)?)|\b(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?\s?pesos)\b"
+        ),
+        example_ok="COP 5.000.000 pesos",
+        example_bad="5000",
+        explain="Debe iniciar con COP o finalizar con 'pesos'. Ej: 'COP 5.000.000' o '5.000.000 pesos'."
     ),
 
-
+    # -----------------------------
+    # HORA (24h y 12h)
+    # -----------------------------
     "hora": PatternDef(
         name="Hora",
         regex=_compile(r"\b(0?\d|1\d|2[0-3]):[0-5]\d(?:\s?(AM|PM|am|pm))?\b"),
@@ -96,6 +144,9 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Formato 24h y 12h con AM/PM."
     ),
 
+    # -----------------------------
+    # NIT / RUT COLOMBIANO
+    # -----------------------------
     "nit": PatternDef(
         name="NIT/RUT",
         regex=_compile(r"\b\d{3}\.\d{3}\.\d{3}-\d\b"),
@@ -104,31 +155,64 @@ PATTERNS: Dict[str, PatternDef] = {
         explain="Formato colombiano NIT/RUT."
     ),
 
+    # -----------------------------
+    # HASHTAG
+    # -----------------------------
     "hashtag": PatternDef(
         name="Hashtag",
+        # Sin espacios, permite números, letras y acentos
         regex=_compile(r"#[A-Za-z0-9_ÁÉÍÓÚáéíóúñ]+"),
         example_ok="#EventoUQ",
         example_bad="# evento",
         explain="Texto precedido por #, sin espacios."
     ),
     
+    # -----------------------------
+    # CONTRASEÑA SEGURA
+    # -----------------------------
     "password_segura": PatternDef(
-    name="Contraseña segura",
-    regex=_compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\d@$!%*?&_\-#]{8,}$"),
-    example_ok="MiClave_2025!",
-    example_bad="abc123",
-    explain="Debe tener mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo."
+        name="Contraseña segura",
+        # Lookaheads para asegurar: mayúscula, minúscula, número y símbolo
+        regex=_compile(
+            r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\d@$!%*?&_\-#]{8,}$"
+        ),
+        example_ok="MiClave_2025!",
+        example_bad="abc123",
+        explain="Debe tener mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo."
     ),
-
 }
 
+# ---------------------------------------------------------
+# VALIDACIÓN COMPLETA (usa fullmatch)
+# ---------------------------------------------------------
 def validate(name: str, text: str) -> Tuple[bool, str]:
+    """Valida si el texto completo coincide EXACTAMENTE con el patrón elegido."""
     p = PATTERNS[name]
     m = p.regex.fullmatch(text.strip())
     if m:
         return True, f"✓ {p.name} válido."
     return False, f"✗ {p.name} inválido. Ejemplo válido: {p.example_ok}. Detalle: {p.explain}"
 
+# ---------------------------------------------------------
+# BÚSQUEDA EN TEXTO (usa finditer)
+# ---------------------------------------------------------
 def findall(name: str, text: str):
+    """Busca todas las coincidencias dentro de un texto usando regex_search cuando existe."""
     p = PATTERNS[name]
-    return [m.group(0) for m in p.regex.finditer(text)]
+
+    # Si el patrón tiene una regex especial para búsqueda, úsala.
+    pattern = p.regex_search if p.regex_search else p.regex
+    matches = [m.group(0) for m in pattern.finditer(text)]
+    
+    # Post-validación SOLO para teléfonos (revisión de dígitos limpia)
+    if name == "telefono_co":
+        validated = []
+        for match in matches:
+            # Eliminamos todo lo que no sea dígito
+            digitos = re.sub(r'\D', '', match)
+            # Exactamente 10 dígitos y debe empezar por 3
+            if len(digitos) == 10 and digitos[0] == '3':
+                validated.append(match)
+        return validated
+    
+    return matches

@@ -31,7 +31,6 @@ __pycache__/
 # === Archivos de prueba o data ===
 test.txt
 *.docx
-*.txt
 
 # === Archivos del sistema operativo ===
 .DS_Store
