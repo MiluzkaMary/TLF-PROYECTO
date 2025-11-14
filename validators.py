@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 from typing import Pattern, Tuple, Dict, Optional
 
 # Esta clase guarda toda la info necesaria de cada patrón:
-# - su nombre para mostrarlo en pantalla
+# - nombre del patrón para mostrarlo en pantalla
 # - su regex para validación completa
-# - ejemplos (bueno/malo)
+# - ejemplos ( tanto bueno/malo)
 # - su explicación
 # - y opcionalmente una regex diferente solo para búsqueda dentro de textos
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ PATTERNS: Dict[str, PatternDef] = {
     # -----------------------------
     "email": PatternDef(
         name="Correo electrónico",
-        # Regex estándar y confiable para correos (ignora mayúsculas)
+        # Regex estandar y confiable para correos (ignora mayusculas)
         regex=_compile(r"(?i)\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b"),
         example_ok="usuario.nombre@dominio.com",
         example_bad="usuario@@dominio..com",
@@ -46,7 +46,7 @@ PATTERNS: Dict[str, PatternDef] = {
         example_ok="+57 322 9137 132",
         example_bad="123-456-789",
         explain="Debe contener exactamente 10 dígitos iniciando por 3, con o sin prefijo +57, permitiendo espacios o guiones.",
-        # Regex para BÚSQUEDA en textos más largos (extract_all)
+        # Regex para BÚSQUEDA en textos más largos (extract_all), osea la primera ventana
         regex_search=_compile(r"\b(?:\+57[\s-]*)?3(?:[\s-]*\d){9}\b")
     ),
 
